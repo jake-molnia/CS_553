@@ -7,7 +7,7 @@ on:
 
 env:
   HF_USERNAME: jake-molnia
-  HF_SPACE_NAME: test_space
+  HF_SPACE_NAME: CS_553
 
 jobs:
   sync-to-hub:
