@@ -1,0 +1,129 @@
+name: Sync to Hugging Face Hub
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  HF_USERNAME: jake-molnia
+  HF_SPACE_NAME: test_space
+
+jobs:
+  sync-to-hub:
+    runs-on: ubuntu-latest
+    environment: deployment_to_huggingface
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+        lfs: true
+
+    - name: Setup Git configuration
+      run: |
+        git config --global user.name "GitHub Action"
+        git config --global user.email "action@github.com"
+
+    - name: Verify Git status
+      run: |
+        git status
+        git log -n 1
+
+    - name: Setup Hugging Face CLI
+      run: pip install huggingface_hub
+
+    - name: Login to Hugging Face
+      env:
+        HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      run: huggingface-cli login --token $HF_TOKEN
+
+    - name: Sync to Hugging Face Hub
+      env:
+        HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      run: |
+        echo "Syncing to Hugging Face Space: ${{ env.HF_USERNAME }}/${{ env.HF_SPACE_NAME }}"
+        if ! git push https://${{ env.HF_USERNAME }}:$HF_TOKEN@huggingface.co/spaces/${{ env.HF_USERNAME }}/${{ env.HF_SPACE_NAME }} main --force; then
+          echo "Push failed. Attempting to resolve conflicts..."
+          git config --global pull.rebase false
+          git pull https://${{ env.HF_USERNAME }}:$HF_TOKEN@huggingface.co/spaces/${{ env.HF_USERNAME }}/${{ env.HF_SPACE_NAME }} main --allow-unrelated-histories
+          git push https://${{ env.HF_USERNAME }}:$HF_TOKEN@huggingface.co/spaces/${{ env.HF_USERNAME }}/${{ env.HF_SPACE_NAME }} main
+        fi
+
+    - name: Verify sync
+      run: |
+        echo "Verifying sync..."
+        git ls-remote --exit-code https://${{ env.HF_USERNAME }}:$HF_TOKEN@huggingface.co/spaces/${{ env.HF_USERNAME }}/${{ env.HF_SPACE_NAME }} main
+
+    - name: Cleanup
+      if: always()
+      run: |
+        echo "Cleaning up..."
+        huggingface-cli logout
+        git config --global --unset user.name
+        git config --global --unset user.email
+
+    - name: Notify Discord
+      if: always()
+      env:
+        DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+      run: |
+        if [ "${{ job.status }}" == "success" ]; then
+          COLOR="3066993"
+          TITLE="🚀 Sync Successful!"
+          DESCRIPTION="The sync to Hugging Face Hub completed successfully."
+          EMOJI="✅"
+        else
+          COLOR="15158332"
+          TITLE="💥 Sync Failed"
+          DESCRIPTION="The sync to Hugging Face Hub encountered an error."
+          EMOJI="❌"
+        fi
+        
+        # Prepare the JSON payload
+        PAYLOAD=$(cat <<EOF
+        {
+          "embeds": [{
+            "title": "$TITLE",
+            "description": "$DESCRIPTION",
+            "color": $COLOR,
+            "fields": [
+              {
+                "name": "Repository",
+                "value": "${{ github.repository }}",
+                "inline": true
+              },
+              {
+                "name": "Branch",
+                "value": "${{ github.ref_name }}",
+                "inline": true
+              },
+              {
+                "name": "Triggered by",
+                "value": "${{ github.event_name }}",
+                "inline": true
+              }
+            ],
+            "footer": {
+              "text": "$EMOJI Workflow run completed at $(date -u "+%Y-%m-%d %H:%M:%S UTC")"
+            }
+          }],
+          "username": "GitHub Actions",
+          "avatar_url": "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png"
+        }
+        EOF
+        )
+        
+        # Send the payload and capture the response
+        RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -H "Content-Type: application/json" -d "$PAYLOAD" $DISCORD_WEBHOOK)
+        
+        # Check if the request was successful
+        if [ $RESPONSE -ne 204 ]; then
+          echo "Failed to send Discord notification. HTTP response code: $RESPONSE"
+          echo "Payload:"
+          echo "$PAYLOAD"
+          exit 1
+        else
+          echo "Discord notification sent successfully!"
+        fi
