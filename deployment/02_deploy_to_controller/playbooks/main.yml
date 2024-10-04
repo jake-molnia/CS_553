@@ -1,44 +1,199 @@
 ---
-- name: Setup AWS EC2 instance
-  hosts: ec2_instance
+- name: Set up Controller Server
+  hosts: all
   become: yes
   vars_files:
     - ../vars/secrets.yml
 
   tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+      become: yes
+
+    - name: Install required packages
+      apt:
+        name: 
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gnupg
+          - git
+          - ansible
+        state: present
+      become: yes
+
+    - name: Check if Tailscale GPG key exists
+      stat:
+        path: /usr/share/keyrings/tailscale-archive-keyring.gpg
+      register: tailscale_key
+
+    - name: Download Tailscale GPG key
+      get_url:
+        url: https://pkgs.tailscale.com/stable/ubuntu/jammy.noarmor.gpg
+        dest: /usr/share/keyrings/tailscale-archive-keyring.gpg
+        mode: '0644'
+      become: yes
+      when: not tailscale_key.stat.exists
+
+    - name: Add Tailscale repository
+      ansible.builtin.apt_repository:
+        repo: deb [signed-by=/usr/share/keyrings/tailscale-archive-keyring.gpg] https://pkgs.tailscale.com/stable/ubuntu jammy main
+        state: present
+        filename: tailscale
+      become: yes
+
+    - name: Update apt cache again
+      apt:
+        update_cache: yes
+      become: yes
+
     - name: Install Tailscale
-      include_tasks: install_tailscale.yml
+      apt:
+        name: tailscale
+        state: present
+      become: yes
 
-    - name: Setup Ansible
-      include_tasks: setup_ansible.yml
+    - name: Check Tailscale status
+      command: tailscale status
+      register: tailscale_status
+      changed_when: false
+      ignore_errors: yes
 
-    - name: Clone Git repository
+    - name: Run tailscale up with pre-authentication
+      command: tailscale up --authkey={{ tailscale_authkey }}
+      register: tailscale_result
+      changed_when: "'Success' in tailscale_result.stdout"
+      become: yes
+      when: tailscale_status.rc != 0 or 'Tailscale is stopped' in tailscale_status.stdout
+
+    - name: Check if repository exists
+      stat:
+        path: /opt/CS_553
+      register: repo_check
+
+    - name: Remove existing repository if it exists
+      file:
+        path: /opt/CS_553
+        state: absent
+      become: yes
+      when: repo_check.stat.exists
+
+    - name: Clone the Git repository
       git:
         repo: 'https://github.com/jake-molnia/CS_553'
-        dest: /home/ubuntu/CS_553
+        dest: /opt/CS_553
         version: main
+      become: yes
 
-    - name: Run initial SSH configuration script
-      script: ../scripts/initial_ssh_config.sh
-
-    - name: Connect using Tailscale
-      command: tailscale up --authkey "{{ tailscale_authkey }}"
-
-    - name: Copy vault password file to EC2 instance
-      copy:
-        src: ../../.secrets/password.txt
-        dest: /home/ubuntu/vault_password.txt
-        mode: '0600'
-
-    - name: Run Ansible playbook for app deployment
-      command: >
-        ansible-playbook -i /home/ubuntu/CS_553/01_deploy_to_app/inventory/hosts.ini 
-        /home/ubuntu/CS_553/01_deploy_to_app/playbooks/main.yml
-        --vault-password-file /home/ubuntu/vault_password.txt
-      args:
-        chdir: /home/ubuntu/CS_553/01_deploy_to_app
-
-    - name: Remove vault password file
+    - name: Set permissions for the cloned repository
       file:
-        path: /home/ubuntu/vault_password.txt
-        state: absent
+        path: /opt/CS_553
+        owner: ubuntu
+        group: ubuntu
+        mode: '0755'
+        recurse: yes
+      become: yes
+
+    - name: Ensure .ssh directory exists
+      file:
+        path: /home/ubuntu/.ssh
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+        mode: '0700'
+      become: yes
+
+    - name: Copy ED25519 private SSH key from vault
+      copy:
+        content: "{{ vault_ssh_private_key }}"
+        dest: /home/ubuntu/.ssh/id_ed25519
+        owner: ubuntu
+        group: ubuntu
+        mode: '0600'
+      become: yes
+
+    - name: Ensure correct permissions on ED25519 key
+      file:
+        path: /home/ubuntu/.ssh/id_ed25519
+        owner: ubuntu
+        group: ubuntu
+        mode: '0600'
+      become: yes
+
+    - name: Ensure SSH config file exists
+      file:
+        path: /home/ubuntu/.ssh/config
+        state: touch
+        owner: ubuntu
+        group: ubuntu
+        mode: '0600'
+      become: yes
+
+    - name: Add turing.wpi.edu to SSH config
+      blockinfile:
+        path: /home/ubuntu/.ssh/config
+        block: |
+          Host turing.wpi.edu
+            User jrmolnia
+            Hostname turing.wpi.edu
+            IdentityFile ~/.ssh/id_ed25519
+        marker: "# {mark} ANSIBLE MANAGED BLOCK FOR TURING"
+      become: yes
+      become_user: ubuntu
+
+    - name: Add app server to SSH config
+      blockinfile:
+        path: /home/ubuntu/.ssh/config
+        block: |
+          Host app
+            Port 22018
+            Hostname paffenroth-23.dyn.wpi.edu
+            IdentityFile ~/.ssh/id_ed25519
+        marker: "# {mark} ANSIBLE MANAGED BLOCK FOR APP SERVER"
+      become: yes
+      become_user: ubuntu
+
+    - name: Check if initial setup script has been run
+      stat:
+        path: /home/ubuntu/.initial_setup_complete
+      register: setup_check
+
+    - name: Run initial setup shell script with Tailscale key
+      command: >
+        /opt/CS_553/deployment/02_deploy_to_controller/scripts/initial_ssh_config.sh -k {{ tailscale_authkey }}
+      args:
+        chdir: /opt/CS_553/deployment/02_deploy_to_controller
+      become: yes
+      become_user: ubuntu
+      when: not setup_check.stat.exists
+
+    - name: Ensure .ansible directory exists
+      file:
+        path: /home/ubuntu/.ansible
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+        mode: '0700'
+      become: yes
+
+    - name: Copy vault password file from local machine
+      copy:
+        src: /path/to/local/vault_password.txt
+        dest: /home/ubuntu/.ansible/vault_password.txt
+        owner: ubuntu
+        group: ubuntu
+        mode: '0600'
+      become: yes
+
+    - name: Run Ansible playbook for app server setup
+      command: >
+        ansible-playbook -i inventory/hosts.ini 
+        playbooks/main.yml 
+        --vault-password-file /home/ubuntu/.ansible/vault_password.txt
+      args:
+        chdir: /opt/CS_553/deployment/01_deploy_to_app
+      become: yes
+      become_user: ubuntu
+      environment:
+        ANSIBLE_CONFIG: /opt/CS_553/deployment/01_deploy_to_app/ansible.cfg
