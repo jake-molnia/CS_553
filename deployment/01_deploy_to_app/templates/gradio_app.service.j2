@@ -1,0 +1,12 @@
+[Unit]
+Description=Gradio App Service
+After=network.target
+
+[Service]
+User={{ app_user }}
+WorkingDirectory={{ app_dir }}
+ExecStart={{ venv_dir }}/bin/python {{ app_dir }}/src/app.py
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,16 @@
+- name: Setup Ansible
+  block:
+    - name: Install Ansible and dependencies
+      apt:
+        name:
+          - ansible
+          - git
+          - python3-pip
+        state: present
+        update_cache: yes
+    - name: Install required Python packages
+      pip:
+        name:
+          - boto3
+          - botocore
+        state: present

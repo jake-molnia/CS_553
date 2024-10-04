@@ -1,0 +1,51 @@
+---
+- name: Set up users with sudo privileges and SSH keys
+  hosts: all
+  become: yes
+  vars_files:
+    - ../vars/secrets.yml
+  vars:
+    users:
+      - name: jake
+        ssh_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIN13c8DOTx1GjD027XbN/G6MByFEvDX8zttW9EwCxQFe main key"
+      - name: rayhan
+        ssh_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIH6Zr582CwihCcLtO0wY0urFnsaka5TRUELAU/7qxt/m rayhanunix@LAPTOP-72FA1E7J"
+
+  tasks:
+    - name: Create users
+      user:
+        name: "{{ item.name }}"
+        password: "{{ item.password | password_hash('sha512') }}"
+        state: present
+        groups: sudo
+        shell: /bin/bash
+      loop: "{{ vault_users }}"
+
+    - name: Add SSH keys
+      authorized_key:
+        user: "{{ item.name }}"
+        key: "{{ item.ssh_key }}"
+        state: present
+      loop: "{{ users }}"
+
+    - name: Ensure sudo group has sudo privileges
+      lineinfile:
+        path: /etc/sudoers
+        state: present
+        regexp: '^%sudo'
+        line: '%sudo ALL=(ALL:ALL) ALL'
+        validate: '/usr/sbin/visudo -cf %s'
+
+    - name: Disable password authentication for SSH
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^PasswordAuthentication'
+        line: 'PasswordAuthentication no'
+        state: present
+      notify: Restart SSH
+
+  handlers:
+    - name: Restart SSH
+      service:
+        name: sshd
+        state: restarted

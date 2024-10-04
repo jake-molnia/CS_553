@@ -1,0 +1,8 @@
+---
+- name: Run all playbooks
+  hosts: all
+  become: yes
+
+- import_playbook: setup_users.yml
+- import_playbook: install_tailscale.yml
+- import_playbook: deploy_gradio_app.yml

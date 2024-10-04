@@ -1,0 +1,44 @@
+---
+- name: Setup AWS EC2 instance
+  hosts: ec2_instance
+  become: yes
+  vars_files:
+    - ../vars/secrets.yml
+
+  tasks:
+    - name: Install Tailscale
+      include_tasks: install_tailscale.yml
+
+    - name: Setup Ansible
+      include_tasks: setup_ansible.yml
+
+    - name: Clone Git repository
+      git:
+        repo: 'https://github.com/jake-molnia/CS_553'
+        dest: /home/ubuntu/CS_553
+        version: main
+
+    - name: Run initial SSH configuration script
+      script: ../scripts/initial_ssh_config.sh
+
+    - name: Connect using Tailscale
+      command: tailscale up --authkey "{{ tailscale_authkey }}"
+
+    - name: Copy vault password file to EC2 instance
+      copy:
+        src: ../../.secrets/password.txt
+        dest: /home/ubuntu/vault_password.txt
+        mode: '0600'
+
+    - name: Run Ansible playbook for app deployment
+      command: >
+        ansible-playbook -i /home/ubuntu/CS_553/01_deploy_to_app/inventory/hosts.ini 
+        /home/ubuntu/CS_553/01_deploy_to_app/playbooks/main.yml
+        --vault-password-file /home/ubuntu/vault_password.txt
+      args:
+        chdir: /home/ubuntu/CS_553/01_deploy_to_app
+
+    - name: Remove vault password file
+      file:
+        path: /home/ubuntu/vault_password.txt
+        state: absent

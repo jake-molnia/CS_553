@@ -1,0 +1,77 @@
+---
+- name: Deploy Gradio App
+  hosts: all
+  become: yes
+  vars:
+    app_user: app
+    app_dir: /home/{{ app_user }}/gradio_app
+    venv_dir: "{{ app_dir }}/venv"
+
+  tasks:
+    - name: Create app user
+      user:
+        name: "{{ app_user }}"
+        shell: /bin/bash
+
+    - name: Install system dependencies
+      apt:
+        name:
+          - python3
+          - python3-pip
+          - python3-venv
+        state: present
+        update_cache: yes
+
+    - name: Create app directory
+      file:
+        path: "{{ app_dir }}"
+        state: directory
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+        mode: '0755'
+
+    - name: Copy app files
+      copy:
+        src: ../../app/
+        dest: "{{ app_dir }}"
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+        mode: '0644'
+
+    - name: Create virtual environment
+      command:
+        cmd: python3 -m venv {{ venv_dir }}
+        creates: "{{ venv_dir }}"
+
+    - name: Change ownership of virtual environment
+      file:
+        path: "{{ venv_dir }}"
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+        recurse: yes
+
+    - name: Install Python dependencies
+      pip:
+        requirements: "{{ app_dir }}/requirements.txt"
+        virtualenv: "{{ venv_dir }}"
+        virtualenv_command: python3 -m venv
+
+    - name: Change ownership of app directory
+      file:
+        path: "{{ app_dir }}"
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+        recurse: yes
+
+    - name: Create systemd service file
+      template:
+        src: ../templates/gradio_app.service.j2
+        dest: /etc/systemd/system/gradio_app.service
+        mode: '0644'
+
+    - name: Start and enable Gradio app service
+      systemd:
+        name: gradio_app
+        state: started
+        enabled: yes
+        daemon_reload: yes
