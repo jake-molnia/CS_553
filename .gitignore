@@ -1,0 +1,51 @@
+# Ignore the entire keys directory
+/keys/
+
+# Ignore the .secrets directory
+/deployment/.secrets/
+
+# Ignore Mac system files
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Ignore Icon must end with two \r
+Icon
+
+# Ignore Thumbnails
+._*
+
+# Ignore Files that might appear in the root of a volume
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# Ignore Directories potentially created on remote AFP share
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# Ignore Python bytecode files
+__pycache__/
+*.py[cod]
+
+# Ignore virtual environment
+venv/
+*.venv
+env/
+*.env
+
+# Ignore IDE specific files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Ignore log files
+*.log

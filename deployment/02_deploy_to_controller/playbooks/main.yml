@@ -95,6 +95,14 @@
         recurse: yes
       become: yes
 
+    - name: Ensure correct permissions on student-admin key
+      file:
+        path: /opt/CS_553/keys/student-admin-key
+        mode: '0600'
+        owner: ubuntu
+        group: ubuntu
+      become: yes
+
     - name: Ensure .ssh directory exists
       file:
         path: /home/ubuntu/.ssh
