@@ -5,6 +5,9 @@
   vars_files:
     - ../vars/secrets.yml
 
+  vars:
+    ed25519_public_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIARTYgwoPW+VpBofWGYuHIldh18EUo42PHF/e08Dzcyp admin key CS553"
+
   tasks:
     - name: Update apt cache
       apt:
@@ -117,6 +120,15 @@
       copy:
         content: "{{ student_admin_public_key }}"
         dest: /home/ubuntu/.ssh/student-admin-key.pub
+        owner: ubuntu
+        group: ubuntu
+        mode: '0644'
+      become: yes
+    
+    - name: Write ED25519 public key
+      copy:
+        content: "{{ ed25519_public_key }}"
+        dest: /home/ubuntu/.ssh/id_ed25519.pub
         owner: ubuntu
         group: ubuntu
         mode: '0644'

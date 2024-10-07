@@ -6,6 +6,7 @@
     app_user: app
     app_dir: /home/{{ app_user }}/gradio_app
     venv_dir: "{{ app_dir }}/venv"
+    repo_dir: /opt/CS_553
 
   tasks:
     - name: Create app user
@@ -32,7 +33,7 @@
 
     - name: Copy app files
       copy:
-        src: ../../app/
+        src: "{{ repo_dir }}/app/"
         dest: "{{ app_dir }}"
         owner: "{{ app_user }}"
         group: "{{ app_user }}"
@@ -65,7 +66,7 @@
 
     - name: Create systemd service file
       template:
-        src: ../templates/gradio_app.service.j2
+        src: "{{ repo_dir }}/deployment/01_deploy_to_app/templates/gradio_app.service.j2"
         dest: /etc/systemd/system/gradio_app.service
         mode: '0644'
 
