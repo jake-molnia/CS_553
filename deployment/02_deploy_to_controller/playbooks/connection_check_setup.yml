@@ -5,7 +5,7 @@
   vars:
     repo_dest: '/opt/CS_553'
   vars_files:
-    - vars/secrets.yml
+    - ../vars/secrets.yml
   tasks:
     - name: Create connection check script
       template:

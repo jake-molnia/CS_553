@@ -3,7 +3,7 @@
   hosts: all
   become: yes
   vars_files:
-    - vars/secrets.yml
+    - ../vars/secrets.yml
   vars:
     repo_dest: '/opt/CS_553'
   tasks:

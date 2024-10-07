@@ -4,23 +4,35 @@
 APP_SERVER="student-admin@group18"
 INITIAL_SETUP_SCRIPT="/opt/CS_553/deployment/02_deploy_to_controller/scripts/initial_ssh_config.sh"
 TAILSCALE_KEY_FILE="/home/ubuntu/.tailscale_key"
+ANSIBLE_PLAYBOOK="/opt/CS_553/deployment/01_deploy_to_app/playbooks/main.yml"
+ANSIBLE_INVENTORY="/opt/CS_553/deployment/01_deploy_to_app/inventory/hosts.ini"
+ANSIBLE_CONFIG="/opt/CS_553/deployment/01_deploy_to_app/ansible.cfg"
+VAULT_PASSWORD_FILE="/home/ubuntu/.ansible/vault_password.txt"
 
 # Function to check SSH connection
 check_ssh_connection() {
-    ssh -o BatchMode=yes -o ConnectTimeout=5 $APP_SERVER exit
-    return $?
+  ssh -o BatchMode=yes -o ConnectTimeout=5 $APP_SERVER exit
+  return $?
 }
 
 # Main logic
 if ! check_ssh_connection; then
-    echo "Connection failed. Running initial setup script..."
-    if [ -f "$TAILSCALE_KEY_FILE" ]; then
-        TAILSCALE_KEY=$(cat "$TAILSCALE_KEY_FILE")
-        $INITIAL_SETUP_SCRIPT -k "$TAILSCALE_KEY"
+  echo "Connection failed. Running initial setup script and 01 ansible script..."
+  if [ -f "$TAILSCALE_KEY_FILE" ]; then
+    TAILSCALE_KEY=$(cat "$TAILSCALE_KEY_FILE")
+    $INITIAL_SETUP_SCRIPT -k "$TAILSCALE_KEY"
+
+    # Run the 01 ansible script
+    if [ -f "$ANSIBLE_PLAYBOOK" ] && [ -f "$ANSIBLE_INVENTORY" ] && [ -f "$ANSIBLE_CONFIG" ] && [ -f "$VAULT_PASSWORD_FILE" ]; then
+      ANSIBLE_CONFIG="$ANSIBLE_CONFIG" ansible-playbook -i "$ANSIBLE_INVENTORY" "$ANSIBLE_PLAYBOOK" --vault-password-file "$VAULT_PASSWORD_FILE"
     else
-        echo "Tailscale key file not found. Cannot run initial setup."
-        exit 1
+      echo "One or more required files for running the ansible playbook are missing."
+      exit 1
     fi
+  else
+    echo "Tailscale key file not found. Cannot run initial setup or ansible playbook."
+    exit 1
+  fi
 else
-    echo "Connection successful. No action needed."
+  echo "Connection successful. No action needed."
 fi
