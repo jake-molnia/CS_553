@@ -74,7 +74,7 @@ ssh $SSH_OPTIONS -J turing.wpi.edu student-admin@app <<EOF || handle_error "Fail
     fi
 
     # Run Tailscale with the provided auth key
-    sudo tailscale up --authkey "$TAILSCALE_KEY" || handle_error "Failed to run Tailscale"
+    sudo tailscale up --authkey "$TAILSCALE_KEY"  --hostname=group18|| handle_error "Failed to run Tailscale"
 
     echo "Tailscale setup completed successfully"
     exit

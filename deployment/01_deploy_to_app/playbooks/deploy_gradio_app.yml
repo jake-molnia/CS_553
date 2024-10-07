@@ -6,7 +6,8 @@
     app_user: app
     app_dir: /home/{{ app_user }}/gradio_app
     venv_dir: "{{ app_dir }}/venv"
-    repo_dir: /opt/CS_553
+    #    repo_dir: /opt/CS_553
+    repo_dir: ../../../
 
   tasks:
     - name: Create app user

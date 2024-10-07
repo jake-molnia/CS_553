@@ -54,3 +54,16 @@
               Port 22018
               Hostname paffenroth-23.dyn.wpi.edu
               IdentityFile ~/.ssh/id_ed25519
+
+    - name: Clear known_hosts file
+      file:
+        path: /home/ubuntu/.ssh/known_hosts
+        state: absent
+      
+    - name: Create empty known_hosts file
+      file:
+        path: /home/ubuntu/.ssh/known_hosts
+        state: touch
+        owner: ubuntu
+        group: ubuntu
+        mode: '0644'

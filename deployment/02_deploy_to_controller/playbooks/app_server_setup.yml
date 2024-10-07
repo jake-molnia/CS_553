@@ -31,3 +31,5 @@
       become_user: ubuntu
       environment:
         ANSIBLE_CONFIG: "{{ repo_dest }}/deployment/01_deploy_to_app/ansible.cfg"
+        ANSIBLE_HOST_KEY_CHECKING: "False"
+
