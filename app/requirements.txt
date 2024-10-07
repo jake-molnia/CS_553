@@ -3,7 +3,5 @@ torch==2.3.0+cpu
 
 huggingface_hub==0.23.*
 gradio==4.39.*
-torchvision==0.15.2+cpu
-torchaudio==2.4.1+cpu
 transformers==4.43.*
 accelerate==0.33.*
