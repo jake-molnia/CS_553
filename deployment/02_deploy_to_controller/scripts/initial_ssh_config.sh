@@ -35,14 +35,14 @@ test_ssh_connection() {
 }
 
 # Backup the existing authorized_keys file
-ssh $SSH_OPTIONS -i /opt/CS_553/keys/student-admin-key -J turing.wpi.edu student-admin@app <<EOF || handle_error "Failed to backup authorized_keys"
+ssh $SSH_OPTIONS -i ~/.ssh/student-admin-key -J turing.wpi.edu student-admin@app <<EOF || handle_error "Failed to backup authorized_keys"
     cp ~/.ssh/authorized_keys ~/.ssh/authorized_keys.bak || handle_error "Failed to create backup of authorized_keys"
     echo "Backup of authorized_keys created"
 EOF
 
 # Update authorized_keys file with the new key while keeping existing keys
-ssh $SSH_OPTIONS -i /opt/CS_553/keys/student-admin-key -J turing.wpi.edu student-admin@app <<EOF || handle_error "Failed to update authorized_keys"
-    NEW_KEY="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIARTYgwoPW+VpBofWGYuHIldh18EUo42PHF/e08Dzcyp admin key CS553"
+ssh $SSH_OPTIONS -i ~/.ssh/student-admin-key -J turing.wpi.edu student-admin@app <<EOF || handle_error "Failed to update authorized_keys"
+    NEW_KEY="$(cat ~/.ssh/id_ed25519.pub)"
     if ! grep -q "\$NEW_KEY" ~/.ssh/authorized_keys; then
         echo "\$NEW_KEY" >> ~/.ssh/authorized_keys || handle_error "Failed to append new key to authorized_keys"
     fi
@@ -55,7 +55,7 @@ if test_ssh_connection; then
   echo "SSH connection with new key successful"
 else
   echo "SSH connection with new key failed. Restoring backup..."
-  ssh $SSH_OPTIONS -i /opt/CS_553/keys/student-admin-key -J turing.wpi.edu student-admin@app <<EOF || handle_error "Failed to restore authorized_keys backup"
+  ssh $SSH_OPTIONS -i ~/.ssh/student-admin-key -J turing.wpi.edu student-admin@app <<EOF || handle_error "Failed to restore authorized_keys backup"
         cp ~/.ssh/authorized_keys.bak ~/.ssh/authorized_keys || handle_error "Failed to restore backup of authorized_keys"
         chmod 600 ~/.ssh/authorized_keys || handle_error "Failed to set permissions on restored authorized_keys"
         echo "Backup of authorized_keys restored"

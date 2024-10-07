@@ -95,14 +95,6 @@
         recurse: yes
       become: yes
 
-    - name: Ensure correct permissions on student-admin key
-      file:
-        path: /opt/CS_553/keys/student-admin-key
-        mode: '0600'
-        owner: ubuntu
-        group: ubuntu
-      become: yes
-
     - name: Ensure .ssh directory exists
       file:
         path: /home/ubuntu/.ssh
@@ -112,18 +104,28 @@
         mode: '0700'
       become: yes
 
-    - name: Copy ED25519 private SSH key from vault
+    - name: Copy student-admin private key
       copy:
-        content: "{{ vault_ssh_private_key }}"
-        dest: /home/ubuntu/.ssh/id_ed25519
+        content: "{{ student_admin_private_key }}"
+        dest: /home/ubuntu/.ssh/student-admin-key
         owner: ubuntu
         group: ubuntu
         mode: '0600'
       become: yes
 
-    - name: Ensure correct permissions on ED25519 key
-      file:
-        path: /home/ubuntu/.ssh/id_ed25519
+    - name: Copy student-admin public key
+      copy:
+        content: "{{ student_admin_public_key }}"
+        dest: /home/ubuntu/.ssh/student-admin-key.pub
+        owner: ubuntu
+        group: ubuntu
+        mode: '0644'
+      become: yes
+
+    - name: Copy ED25519 private SSH key
+      copy:
+        content: "{{ vault_ssh_private_key }}"
+        dest: /home/ubuntu/.ssh/id_ed25519
         owner: ubuntu
         group: ubuntu
         mode: '0600'
@@ -162,10 +164,10 @@
       become: yes
       become_user: ubuntu
 
-    - name: Check if initial setup script has been run
+    - name: Check if initial setup flag file exists
       stat:
         path: /home/ubuntu/.initial_setup_complete
-      register: setup_check
+      register: setup_flag
 
     - name: Run initial setup shell script with Tailscale key
       command: >
@@ -174,7 +176,16 @@
         chdir: /opt/CS_553/deployment/02_deploy_to_controller
       become: yes
       become_user: ubuntu
-      when: not setup_check.stat.exists
+      when: not setup_flag.stat.exists
+
+    - name: Create initial setup flag file
+      file:
+        path: /home/ubuntu/.initial_setup_complete
+        state: touch
+        owner: ubuntu
+        group: ubuntu
+        mode: '0644'
+      when: not setup_flag.stat.exists
 
     - name: Ensure .ansible directory exists
       file:
@@ -187,7 +198,7 @@
 
     - name: Copy vault password file from local machine
       copy:
-        src: /path/to/local/vault_password.txt
+        src: ../../.secrets/password.txt
         dest: /home/ubuntu/.ansible/vault_password.txt
         owner: ubuntu
         group: ubuntu
