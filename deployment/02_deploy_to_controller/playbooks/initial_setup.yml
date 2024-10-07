@@ -1,0 +1,30 @@
+---
+- name: Initial Setup
+  hosts: all
+  become: yes
+  vars_files:
+    - vars/secrets.yml
+  vars:
+    repo_dest: '/opt/CS_553'
+  tasks:
+    - name: Check if initial setup flag file exists
+      stat:
+        path: /home/ubuntu/.initial_setup_complete
+      register: setup_flag
+
+    - name: Run initial setup shell script with Tailscale key
+      command: >
+        {{ repo_dest }}/deployment/02_deploy_to_controller/scripts/initial_ssh_config.sh -k {{ tailscale_authkey }}
+      args:
+        chdir: "{{ repo_dest }}/deployment/02_deploy_to_controller"
+      become_user: ubuntu
+      when: not setup_flag.stat.exists
+
+    - name: Create initial setup flag file
+      file:
+        path: /home/ubuntu/.initial_setup_complete
+        state: touch
+        owner: ubuntu
+        group: ubuntu
+        mode: '0644'
+      when: not setup_flag.stat.exists

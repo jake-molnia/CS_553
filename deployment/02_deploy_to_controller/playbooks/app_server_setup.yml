@@ -1,0 +1,33 @@
+---
+- name: App Server Setup
+  hosts: all
+  become: yes
+  vars:
+    repo_dest: '/opt/CS_553'
+  tasks:
+    - name: Ensure .ansible directory exists
+      file:
+        path: /home/ubuntu/.ansible
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+        mode: '0700'
+
+    - name: Copy vault password file from local machine
+      copy:
+        src: ../../.secrets/password.txt
+        dest: /home/ubuntu/.ansible/vault_password.txt
+        owner: ubuntu
+        group: ubuntu
+        mode: '0600'
+
+    - name: Run Ansible playbook for app server setup
+      command: >
+        ansible-playbook -i inventory/hosts.ini 
+        playbooks/main.yml 
+        --vault-password-file /home/ubuntu/.ansible/vault_password.txt
+      args:
+        chdir: "{{ repo_dest }}/deployment/01_deploy_to_app"
+      become_user: ubuntu
+      environment:
+        ANSIBLE_CONFIG: "{{ repo_dest }}/deployment/01_deploy_to_app/ansible.cfg"

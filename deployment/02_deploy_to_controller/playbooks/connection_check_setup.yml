@@ -1,0 +1,47 @@
+---
+- name: Connection Check Setup
+  hosts: all
+  become: yes
+  vars:
+    repo_dest: '/opt/CS_553'
+  vars_files:
+    - vars/secrets.yml
+  tasks:
+    - name: Create connection check script
+      template:
+        src: templates/connection_check.sh.j2
+        dest: "{{ repo_dest }}/deployment/02_deploy_to_controller/scripts/connection_check.sh"
+        owner: ubuntu
+        group: ubuntu
+        mode: '0755'
+
+    - name: Create systemd service file for connection check
+      template:
+        src: templates/connection_check.service.j2
+        dest: /etc/systemd/system/connection_check.service
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Store Tailscale key in a file
+      copy:
+        content: "{{ tailscale_authkey }}"
+        dest: /home/ubuntu/.tailscale_key
+        owner: ubuntu
+        group: ubuntu
+        mode: '0600'
+
+    - name: Create connection check timer file
+      template:
+        src: templates/connection_check.timer.j2
+        dest: /etc/systemd/system/connection_check.timer
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Start and enable connection check timer
+      systemd:
+        name: connection_check.timer
+        state: started
+        enabled: yes
+        daemon_reload: yes

@@ -1,0 +1,10 @@
+[Unit]
+Description=Check connection to app server and run initial setup if needed
+After=network.target
+
+[Service]
+ExecStart=/bin/bash /opt/CS_553/deployment/02_deploy_to_controller/scripts/connection_check.sh
+User=ubuntu
+
+[Install]
+WantedBy=multi-user.target

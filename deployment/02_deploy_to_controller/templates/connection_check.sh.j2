@@ -1,0 +1,26 @@
+#!/bin/bash
+
+# Configuration
+APP_SERVER="student-admin@group18"
+INITIAL_SETUP_SCRIPT="/opt/CS_553/deployment/02_deploy_to_controller/scripts/initial_ssh_config.sh"
+TAILSCALE_KEY_FILE="/home/ubuntu/.tailscale_key"
+
+# Function to check SSH connection
+check_ssh_connection() {
+    ssh -o BatchMode=yes -o ConnectTimeout=5 $APP_SERVER exit
+    return $?
+}
+
+# Main logic
+if ! check_ssh_connection; then
+    echo "Connection failed. Running initial setup script..."
+    if [ -f "$TAILSCALE_KEY_FILE" ]; then
+        TAILSCALE_KEY=$(cat "$TAILSCALE_KEY_FILE")
+        $INITIAL_SETUP_SCRIPT -k "$TAILSCALE_KEY"
+    else
+        echo "Tailscale key file not found. Cannot run initial setup."
+        exit 1
+    fi
+else
+    echo "Connection successful. No action needed."
+fi

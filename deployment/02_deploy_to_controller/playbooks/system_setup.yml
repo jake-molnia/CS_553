@@ -1,0 +1,19 @@
+---
+- name: System Setup
+  hosts: all
+  become: yes
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+
+    - name: Install required packages
+      apt:
+        name: 
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gnupg
+          - git
+          - ansible
+        state: present

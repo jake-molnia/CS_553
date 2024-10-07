@@ -1,0 +1,45 @@
+---
+- name: Tailscale Setup
+  hosts: all
+  become: yes
+  vars_files:
+    - vars/secrets.yml
+  tasks:
+    - name: Check if Tailscale GPG key exists
+      stat:
+        path: /usr/share/keyrings/tailscale-archive-keyring.gpg
+      register: tailscale_key
+
+    - name: Download Tailscale GPG key
+      get_url:
+        url: https://pkgs.tailscale.com/stable/ubuntu/jammy.noarmor.gpg
+        dest: /usr/share/keyrings/tailscale-archive-keyring.gpg
+        mode: '0644'
+      when: not tailscale_key.stat.exists
+
+    - name: Add Tailscale repository
+      ansible.builtin.apt_repository:
+        repo: deb [signed-by=/usr/share/keyrings/tailscale-archive-keyring.gpg] https://pkgs.tailscale.com/stable/ubuntu jammy main
+        state: present
+        filename: tailscale
+
+    - name: Update apt cache again
+      apt:
+        update_cache: yes
+
+    - name: Install Tailscale
+      apt:
+        name: tailscale
+        state: present
+
+    - name: Check Tailscale status
+      command: tailscale status
+      register: tailscale_status
+      changed_when: false
+      ignore_errors: yes
+
+    - name: Run tailscale up with pre-authentication
+      command: tailscale up --authkey={{ tailscale_authkey }}
+      register: tailscale_result
+      changed_when: "'Success' in tailscale_result.stdout"
+      when: tailscale_status.rc != 0 or 'Tailscale is stopped' in tailscale_status.stdout
